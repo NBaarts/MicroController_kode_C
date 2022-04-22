@@ -1,63 +1,67 @@
-/*
- * C_Timer2_OC2_motor.cpp
- *
- * Created: 3/23/2022 2:32:34 PM
- * Author : nikol
- */ 
+#define F_CPU 16000000UL /* Define frequency here its 8MHz */
+#include <avr/io.h>
+#include <util/delay.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <avr/interrupt.h>
+#define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
 
-#include <avr/io.h>			// Indeholder standard C kommandoer der bruges til en MC 
-#include <avr/interrupt.h>	// Índeholder interrupts kommandoer
+void UART_setup(long USART_BAUDRATE){
+	UCSRB |= (1 << RXEN) | (1 << TXEN);						// Turn on transmission and reception
+	UCSRC |= (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1);	// Use 8-bit character sizes
+	UBRRL = BAUD_PRESCALE;									// lower bites
+	UBRRH = (BAUD_PRESCALE >> 8);							// higher bites  ">>" betyder ryk bit 8 steps*/
+	}
+	unsigned char UART_ModtagChar(){
+	while ((UCSRA & (1 << RXC)) == 0);						// venter til alt data er modtaget
+	return(UDR);											// funktionen returnere modtaget data Return the byte*/
+	}
 
-int main(void)
-{
-    
+	void UART_SendChar(char ch){
+	while (! (UCSRA & (1<<UDRE)));							// venter på at transmiter er tom
+	UDR = ch ;
+	}
+
+
+	void UART_SendString(char *str)
+	{
+	unsigned char j = 0;
+	while (str[j]!=0){									//Sender ind til string er 0(alt data er sendt)
+	UART_SendChar(str[j]);								//sender til Tx
+	j++;												// j = j+1
+	}
+	}
+
+	int main()
+	{
+	UART_setup(9600);										//kører setup med en baudrate på 9600
+					
 	
-	DDRD = 0b10000010; 
-	PORTD = 0x00;												// Umiddelbart skal der skrives 0 for output pin
+	char a;
+	while(1)
+	{
 	
-	//DDRB = 0xFF;												// Dette kan måske undlades
-	//PORTB = 0xFF;												// Dette kan måske undlades
-	
-	DDRA = 0x00;												// Vi skal 
-	PORTA = 0x00;
-	
-	//ADC setup
-	
-	ADMUX = (0b01 << REFS0)|(1 << ADLAR)|(0b00011 << MUX0);
-	
-	ADCSRA = (1 << ADEN)|(1 << ADSC)|(0 << ADATE)|(0 << ADIF)|(0 << ADIE)|(0b001 << ADPS0);
-	
-	// SFIOR = (0b011 << ADTS0);
-	
-	// Timer 0 setup
-	
-	TCCR0 = (0b10 << WGM00)|(0b11 << COM00)|(0b001 << CS00); // Prøv med CTC mode i stedet, 
-	OCR0 = 150; 
-	TIMSK = (1 << OCIE0);
-	
-	
-	// Timer 2 setup
-	
-	TCCR2 = (0b11 << WGM20)|(0b10 << COM20)|(0b001 << CS20);	// Se side 75, ca. 125+ (WGM - Fast PWM) (COM - Clear OC2 on compare match, set OC2 at bottom [ikke - inverterende]) (CS - ingen clock prescale) 
-	
-	
-	sei();														// Enable global interrupts. Må ikke skrives med stort
-	
-	
-	
-    while(1) 
-    {
-	//	ADCSRA |= (1 << ADSC);
-		if(ADCH > 0b01010000){	// 0b01111000 - Venstre sving 
-			OCR2 = 0x00; 	
-		}
-		if(ADCH < 0b01000000){ // højre sving
-			OCR2 = 0x00; 
-		}
-		else{
-			OCR2 = 0xF0; // 0xAF er umiddelbart hurtigst. Dette er spændning henover motoren
+	a = UART_ModtagChar();
+	UART_SendChar(a);
+		
+		switch (a)
+		{
+			case 'a':
+			OCR2 = 0x0F;
+			UART_SendChar('1');
+			break;
+			case 'b':
+			OCR2 = 0xAF;
+			UART_SendChar('2');
+			break;
+			case 'c':
+			OCR2 = 0x00;
+			UART_SendChar('3');
+			break;
 		}
 		
-    }
-}
+	}
+	
+	};
+	
 
